@@ -6,7 +6,7 @@ import Card from 'react-bootstrap/Card';
 const MainTop: React.FC = () => {
     return (
         <Card className="bg-light text-dark">
-            <Card.Img src={`${process.env.PUBLIC_URL}/hutte.png`} alt="Card image" />
+            <Card.Img src={`${process.env.PUBLIC_URL}/img/hutte.png`} alt="Card image" />
             <Card.ImgOverlay>
             <Row>
                 <Col md={4}>

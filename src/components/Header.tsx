@@ -1,19 +1,18 @@
 import React from "react";
+import { Link } from 'react-router-dom';
 import { Container, Nav } from "react-bootstrap";
 import Navbar from 'react-bootstrap/Navbar';
-
-// const styleOne: React.CSSProperties = {
-//     color: 'red'
-// }
 
 const Header: React.FC = () => {
     return (
         <Navbar bg="light" variant="light">
             <Container>
-            <Navbar.Brand href="#home">Kitamachi Hutte</Navbar.Brand>
+            <Navbar.Brand href="/">Kitamachi Hutte</Navbar.Brand>
             <Nav className="me-auto">
-                <Nav.Link href="#home">Home</Nav.Link>
-                <Nav.Link href="#pricing">Price</Nav.Link>
+                <Nav.Link as={Link} to="/">Home</Nav.Link>
+                <Nav.Link as={Link} to="/menu">Menu</Nav.Link>
+                <Nav.Link as={Link} to="/login">Login Page</Nav.Link>
+                <Nav.Link as={Link} to="/reservation">Reservation</Nav.Link>
             </Nav>
             </Container>
         </Navbar>
