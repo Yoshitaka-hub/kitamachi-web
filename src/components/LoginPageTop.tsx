@@ -58,7 +58,7 @@ const LoginPageTop: React.FC = (props: any) => {
                         <Button variant="primary" onClick={async () => {
                             try {
                                 await signInWithEmailAndPassword(auth, email, password);
-                                history.push("/myPage");
+                                history.push("/login");
                             } catch (error: any) {
                                 alert(error.message);
                             }

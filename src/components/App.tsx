@@ -39,11 +39,8 @@ const App: React.FC = () => {
                     </Route>
                     <Route path="/myPage">
                         <Header />
-                        <MyPageTop />
-                    </Route>
-                    <Route path="/reservation">
-                        <Header />
                         <ReservationCheckTop />
+                        <MyPageTop />
                     </Route>
                     <Route path="/">
                         <Header />
