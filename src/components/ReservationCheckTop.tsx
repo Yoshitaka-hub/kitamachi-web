@@ -9,11 +9,13 @@ import Container from 'react-bootstrap/Container'
 import Row from 'react-bootstrap/Row'
 import Col from 'react-bootstrap/Col'
 import Button from 'react-bootstrap/Button'
+import Badge from 'react-bootstrap/Badge'
 import Image from 'react-bootstrap/Image'
 import DropdownButton from 'react-bootstrap/DropdownButton'
 import Dropdown from 'react-bootstrap/Dropdown'
 import Form from 'react-bootstrap/Form'
 import { addDoc, Timestamp } from "firebase/firestore";
+import { Repeat } from 'typescript-tuple'
 
 
 const style: React.CSSProperties = {
@@ -33,20 +35,124 @@ const styleC: React.CSSProperties = {
 }
 
 function ReservationCheckTop(props: any) {
-    const [reservations, setReservations] = useState([{ id: "", name: "" }]);
+    const dbName: String = "resB";
+    const [reservations, setReservations] = useState([{ id: "", seat: "" }]);
     useEffect(() => {
-        const q = query(collection(db, "resA"), where("hour", "==", "1"));
+        const q = query(collection(db, String(dbName)), where("memberNo", "==", "555555"));
         fetchData();
         async function fetchData() {
             const querySnapshot = await getDocs(q);
             setReservations(
-                querySnapshot.docs.map((doc) => ({ id: doc.id, name: doc.data().memberNo }))
+                querySnapshot.docs.map((doc) => ({ id: doc.id, seat: doc.data().seat }))
             );
+            querySnapshot.docs.map((doc) => {
+                seatsData[Number(doc.data().seat) - 1] = '予約あり'
+            })
         };
     }, []);
 
+    const filterSeatLogic = (num: Number) => {
+        reservations.filter(res => {
+            return Number(res.seat) === num
+        })
+    }
+
+    type SeatState = '空席' | '予約あり' | '着席'
+    type SeatProps = {
+        value: SeatState
+        num: number
+    }
+    const SeatButton = (props: SeatProps) => (
+        seats(props)
+    )
+    const seats = (state: SeatProps) => {
+        switch (state.value) {
+            case '予約あり':
+                return (
+                    <Button className='seatButton' variant="warning" onClick={() => setResSeat(state.num)}>
+                        <Badge bg="light" text="dark">{state.num + 1}</Badge>
+                        {state.value}
+                    </Button>
+                )
+            case '着席':
+                return (
+                    <Button className='seatButton' variant="danger" onClick={() => setResSeat(state.num)}>
+                        <Badge bg="light" text="dark">{state.num + 1}</Badge>
+                        {state.value}
+                    </Button>
+                )
+            default:
+                return (
+                    <Button className='seatButton' variant="outline-primary" onClick={() => setResSeat(state.num)}>
+                        <Badge bg="light" text="dark">{state.num + 1}</Badge>
+                        {state.value}
+                    </Button>
+                )
+        }
+    }
+    type BoardState = Repeat<SeatState, 9>
+    type BoardProps = {
+        seatButtons: BoardState
+    }
+    const seatsData: BoardState = ['空席', '空席', '空席', '空席', '空席', '空席', '空席', '空席', '空席']
+    const Board = (props: BoardProps) => {
+        const renderSeat = (i: number) => (
+            <SeatButton value={props.seatButtons[i]} num={i} />
+        )
+
+        return (
+            <Container style={style}>
+                {/* Stack the columns on mobile by making one full-width and the other half-width */}
+                <Row>
+                    <Col xs={{ span: 2, offset: 2 }} md={{ span: 2, offset: 2 }}>
+                        {renderSeat(2)}
+                    </Col>
+                    <Col xs={2} md={2}>
+                        {renderSeat(1)}
+                    </Col>
+                    <Col xs={2} md={2}>
+                        {renderSeat(0)}
+                    </Col>
+                    <Col xs={4} md={4}>
+                    </Col>
+                </Row>
+
+                {/* Columns start at 50% wide on mobile and bump up to 33.3% wide on desktop */}
+                <Row >
+                    <Col xs={2} md={2}>
+                        {renderSeat(3)}
+                    </Col>
+                    <Col xs={10} md={10}>
+                        <Image style={styleB} src={`${process.env.PUBLIC_URL}/img/wood.jpg`} fluid />
+                    </Col>
+                </Row>
+
+                {/* Columns are always 50% wide, on mobile and desktop */}
+                <Row>
+                    <Col xs={{ span: 2, offset: 2 }} md={{ span: 2, offset: 2 }}>
+                        {renderSeat(4)}
+                    </Col>
+                    <Col xs={2} md={2}>
+                        {renderSeat(5)}
+                    </Col>
+                    <Col xs={2} md={2}>
+                        {renderSeat(6)}
+                    </Col>
+                    <Col xs={2} md={2}>
+                        {renderSeat(7)}
+                    </Col>
+                    <Col xs={2} md={2}>
+                        {renderSeat(8)}
+                    </Col>
+                </Row>
+            </Container>
+        )
+
+    }
+
+
     const [date, setDate] = useState<string>("本日");
-    const [resSeat, setResSeat] = useState<Number>(0);
+    const [resSeat, setResSeat] = useState<Number | null>(null);
     const [resHour, setResHour] = useState<Number>(0);
     const [resComment, setResComment] = useState<String>("");
 
@@ -58,7 +164,7 @@ function ReservationCheckTop(props: any) {
     return (
         <div style={style}>
             <Container style={style}>
-                {reservations.map((reservation) => (<h3> {reservation.name}</h3>))}
+                {reservations.map((reservation) => (<h3> {reservation.seat}</h3>))}
             </Container>
             <Container style={style}>
                 <DropdownButton id="dropdown-basic-button" title={date}>
@@ -67,17 +173,24 @@ function ReservationCheckTop(props: any) {
                     <Dropdown.Item onClick={() => { setDate("明後日"); }}>明後日</Dropdown.Item>
                 </DropdownButton>
             </Container>
+            <Board seatButtons={seatsData} />
             <Container style={style}>
                 {/* Stack the columns on mobile by making one full-width and the other half-width */}
                 <Row>
                     <Col xs={{ span: 2, offset: 2 }} md={{ span: 2, offset: 2 }}>
-                        <Button variant="outline-primary" onClick={() => setResSeat(3)}>空席</Button>{' '}
+                        <Button variant="outline-primary" onClick={() => setResSeat(3)}>
+                            <Badge bg="light" text="dark">3</Badge>{' '}
+                            空席</Button>{' '}
                     </Col>
                     <Col xs={2} md={2}>
-                        <Button variant="outline-primary" onClick={() => setResSeat(2)}>空席</Button>{' '}
+                        <Button variant="outline-primary" onClick={() => setResSeat(2)}>
+                            <Badge bg="light" text="dark">2</Badge>{' '}
+                            空席</Button>{' '}
                     </Col>
                     <Col xs={2} md={2}>
-                        <Button variant="outline-primary" onClick={() => setResSeat(1)}>空席</Button>{' '}
+                        <Button variant="outline-primary" onClick={() => setResSeat(1)}>
+                            <Badge bg="light" text="dark">1</Badge>{' '}
+                            空席</Button>{' '}
                     </Col>
                     <Col xs={4} md={4}>
                     </Col>
@@ -86,7 +199,10 @@ function ReservationCheckTop(props: any) {
                 {/* Columns start at 50% wide on mobile and bump up to 33.3% wide on desktop */}
                 <Row >
                     <Col xs={2} md={2}>
-                        <Button variant="outline-primary" onClick={() => setResSeat(4)}>空席</Button>{' '}
+                        <Button variant="outline-primary" onClick={() => setResSeat(4)}>
+                            <Badge bg="light" text="dark">4</Badge>{' '}
+                            空席
+                        </Button>{' '}
                     </Col>
                     <Col xs={10} md={10}>
                         <Image style={styleB} src={`${process.env.PUBLIC_URL}/img/wood.jpg`} fluid />
@@ -96,31 +212,46 @@ function ReservationCheckTop(props: any) {
                 {/* Columns are always 50% wide, on mobile and desktop */}
                 <Row>
                     <Col xs={{ span: 2, offset: 2 }} md={{ span: 2, offset: 2 }}>
-                        <Button variant="outline-primary" onClick={() => setResSeat(5)}>空席</Button>{' '}
+                        <Button variant="outline-primary" onClick={() => setResSeat(5)}>
+                            <Badge bg="light" text="dark">5</Badge>{' '}
+                            空席
+                        </Button>{' '}
                     </Col>
                     <Col xs={2} md={2}>
-                        <Button variant="warning" onClick={() => setResSeat(6)}>予約あり</Button>{' '}
+                        <Button variant="warning" onClick={() => setResSeat(6)}>
+                            <Badge bg="light" text="dark">6</Badge>{' '}
+                            予約あり
+                        </Button>{' '}
                     </Col>
                     <Col xs={2} md={2}>
-                        <Button variant="outline-primary" onClick={() => setResSeat(7)}>空席</Button>{' '}
+                        <Button variant="outline-primary" onClick={() => setResSeat(7)}>
+                            <Badge bg="light" text="dark">7</Badge>{' '}
+                            空席
+                        </Button>{' '}
                     </Col>
                     <Col xs={2} md={2}>
-                        <Button variant="danger" onClick={() => setResSeat(8)}>着席</Button>{' '}
+                        <Button variant="danger" onClick={() => setResSeat(8)}>
+                            <Badge bg="light" text="dark">8</Badge>{' '}
+                            着席
+                        </Button>{' '}
                     </Col>
                     <Col xs={2} md={2}>
-                        <Button variant="outline-primary" onClick={() => setResSeat(9)}>空席</Button>{' '}
+                        <Button variant="outline-primary" onClick={() => setResSeat(9)}>
+                            <Badge bg="light" text="dark">9</Badge>{' '}
+                            空席
+                        </Button>{' '}
                     </Col>
                 </Row>
             </Container>
             <Container style={style}>
                 <Form>
                     <Row className="mb-3">
-                        <Form.Group as={Col} controlId="formGridEmail">
+                        <Form.Group as={Col} controlId="">
                             <Form.Label htmlFor="disabledTextInput">日付</Form.Label>
-                            <Form.Control id="disabledTextInput" placeholder={date} />
+                            <Form.Control placeholder={date} disabled />
                         </Form.Group>
 
-                        <Form.Group as={Col} controlId="formGridPassword">
+                        <Form.Group as={Col} controlId="">
                             <Form.Label>時間</Form.Label>
                             <Form.Select aria-label="Floating label select example" onChange={handleChange}>
                                 <option value="0">予約時間を選択してください！</option>
@@ -132,58 +263,26 @@ function ReservationCheckTop(props: any) {
                             </Form.Select>
                         </Form.Group>
                     </Row>
-
-                    <Form.Group className="mb-3" controlId="formGridAddress1">
-                        <Form.Label>時間</Form.Label>
-                        <Form.Select aria-label="Floating label select example">
-                            <option>Open this select menu</option>
-                            <option value="1">One</option>
-                            <option value="2">Two</option>
-                            <option value="3">Three</option>
-                        </Form.Select>
+                    <Form.Group className="mb-3" controlId="">
+                        <Form.Label htmlFor="disabledTextInput">座席番号</Form.Label>
+                        <Form.Control value={String(resSeat) + "番席"} disabled />
                     </Form.Group>
-
-                    <Form.Group className="mb-3" controlId="formGridAddress2">
+                    <Form.Group className="mb-3" controlId="">
                         <Form.Label>お店への伝言</Form.Label>
                         <Form.Control className="textFeedback"
                             as="textarea"
-                            value={String(resComment)} 
-                            onChange={e => setResComment(e.target.value)} 
+                            value={String(resComment)}
+                            onChange={e => setResComment(e.target.value)}
                             placeholder="お店へのメッセージがあればご記入ください！" />
                     </Form.Group>
-
-                    <Row className="mb-3">
-                        <Form.Group as={Col} controlId="formGridCity">
-                            <Form.Label>City</Form.Label>
-                            <Form.Control />
-                        </Form.Group>
-
-                        <Form.Group as={Col} controlId="formGridState">
-                            <Form.Label>State</Form.Label>
-                            <Form.Control as="select" defaultValue="Choose...">
-                                <option>Choose...</option>
-                                <option>...</option>
-                            </Form.Control>
-                        </Form.Group>
-
-                        <Form.Group as={Col} controlId="formGridZip">
-                            <Form.Label>Zip</Form.Label>
-                            <Form.Control />
-                        </Form.Group>
-                    </Row>
-
-                    <Form.Group className="mb-3" id="formGridCheckbox">
-                        <Form.Check type="checkbox" label="Check me out" />
-                    </Form.Group>
-
                     <Button variant="primary" onClick={async () => {
                         try {
-                            const docRef = await addDoc(collection(db, "resA"), {
-                                id: "101010",
+                            const docRef = await addDoc(collection(db, String(dbName)), {
+                                id: Math.random().toString(32).substring(2),
                                 hour: resHour,
                                 seat: resSeat,
                                 orderForDate: Timestamp.fromDate(new Date("December 10, 2021")),
-                                memberNo: "121212",
+                                memberNo: "555555",
                                 comment: resComment
                             });
                         } catch (error: any) {
