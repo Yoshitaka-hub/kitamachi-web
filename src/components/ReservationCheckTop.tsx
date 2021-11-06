@@ -16,6 +16,8 @@ import Dropdown from 'react-bootstrap/Dropdown'
 import Form from 'react-bootstrap/Form'
 import { addDoc, Timestamp } from "firebase/firestore";
 import { Repeat } from 'typescript-tuple'
+import dayjs from 'dayjs';
+import 'dayjs/locale/ja';
 
 
 const style: React.CSSProperties = {
@@ -37,27 +39,56 @@ const styleC: React.CSSProperties = {
 function ReservationCheckTop(props: any) {
     const dbName: String = "resB";
     const [reservations, setReservations] = useState([{ id: "", seat: "" }]);
+    const [seatData, setSeatData] = useState<SeatState[]>(['空席']);
+    const [seatButtonState, setSeatButtonState] = useState<SeatButtonState[]>(['outline-primary']);
+
+    const today = new Date();
+    const [openDate, setOpenDate] = useState<Date[]>([today]);
+
     useEffect(() => {
-        const q = query(collection(db, String(dbName)), where("memberNo", "==", "555555"));
+        const q1 = query(collection(db, String(dbName)), where("memberNo", "==", "555555"));
+        const q2 = query(collection(db, String("openDate")));
         fetchData();
         async function fetchData() {
-            const querySnapshot = await getDocs(q);
+            const querySnapshot1 = await getDocs(q1);
+            const querySnapshot2 = await getDocs(q2);
             setReservations(
-                querySnapshot.docs.map((doc) => ({ id: doc.id, seat: doc.data().seat }))
+                querySnapshot1.docs.map((doc) => ({ id: doc.id, seat: doc.data().seat }))
             );
-            querySnapshot.docs.map((doc) => {
+            setOpenDate(
+                querySnapshot2.docs.map((doc) => (doc.data().date.toDate()))
+            )
+            querySnapshot1.docs.map((doc) => {
                 seatsData[Number(doc.data().seat) - 1] = '予約あり'
-            })
+                seatsButtonState[Number(doc.data().seat) - 1] = 'warning'
+            });
+            setSeatData(
+                seatsData.map((seat) => (seat))
+            );
+            setSeatButtonState(
+                seatsButtonState.map((buttonState) => (buttonState))
+            );
         };
     }, []);
 
-    const filterSeatLogic = (num: Number) => {
-        reservations.filter(res => {
-            return Number(res.seat) === num
-        })
+    const buttonCheck = (state: SeatButtonState) => {
+        switch (state) {
+            case 'outline-primary':
+                return false
+            default:
+                return true
+        }
+    }
+    const seatSelectionCheck = (state: Number | null) => {
+        if (state == null) {
+            return "席を選択してください！"
+        } else {
+            return String(state) + "番席"
+        }
     }
 
     type SeatState = '空席' | '予約あり' | '着席'
+    type SeatButtonState = 'outline-primary' | 'warning' | 'danger'
     type SeatProps = {
         value: SeatState
         num: number
@@ -66,35 +97,22 @@ function ReservationCheckTop(props: any) {
         seats(props)
     )
     const seats = (state: SeatProps) => {
-        switch (state.value) {
-            case '予約あり':
-                return (
-                    <Button className='seatButton' variant="warning" onClick={() => setResSeat(state.num)}>
-                        <Badge bg="light" text="dark">{state.num + 1}</Badge>
-                        {state.value}
-                    </Button>
-                )
-            case '着席':
-                return (
-                    <Button className='seatButton' variant="danger" onClick={() => setResSeat(state.num)}>
-                        <Badge bg="light" text="dark">{state.num + 1}</Badge>
-                        {state.value}
-                    </Button>
-                )
-            default:
-                return (
-                    <Button className='seatButton' variant="outline-primary" onClick={() => setResSeat(state.num)}>
-                        <Badge bg="light" text="dark">{state.num + 1}</Badge>
-                        {state.value}
-                    </Button>
-                )
-        }
+        return (
+            <Button className='seatButton' variant={seatButtonState[state.num]} onClick={() => setResSeat(state.num + 1)} disabled={buttonCheck(seatButtonState[state.num])}>
+                <Badge bg="light" text="dark">{state.num + 1}</Badge>
+                {seatData[state.num]}
+            </Button>
+        )
     }
+
     type BoardState = Repeat<SeatState, 9>
+    type BoardButtonState = Repeat<SeatButtonState, 9>
     type BoardProps = {
         seatButtons: BoardState
     }
-    const seatsData: BoardState = ['空席', '空席', '空席', '空席', '空席', '空席', '空席', '空席', '空席']
+
+    var seatsData: BoardState = ['空席', '空席', '空席', '空席', '空席', '空席', '空席', '空席', '空席']
+    var seatsButtonState: BoardButtonState = ['outline-primary', 'outline-primary', 'outline-primary', 'outline-primary', 'outline-primary', 'outline-primary', 'outline-primary', 'outline-primary', 'outline-primary']
     const Board = (props: BoardProps) => {
         const renderSeat = (i: number) => (
             <SeatButton value={props.seatButtons[i]} num={i} />
@@ -102,7 +120,6 @@ function ReservationCheckTop(props: any) {
 
         return (
             <Container style={style}>
-                {/* Stack the columns on mobile by making one full-width and the other half-width */}
                 <Row>
                     <Col xs={{ span: 2, offset: 2 }} md={{ span: 2, offset: 2 }}>
                         {renderSeat(2)}
@@ -116,8 +133,6 @@ function ReservationCheckTop(props: any) {
                     <Col xs={4} md={4}>
                     </Col>
                 </Row>
-
-                {/* Columns start at 50% wide on mobile and bump up to 33.3% wide on desktop */}
                 <Row >
                     <Col xs={2} md={2}>
                         {renderSeat(3)}
@@ -126,8 +141,6 @@ function ReservationCheckTop(props: any) {
                         <Image style={styleB} src={`${process.env.PUBLIC_URL}/img/wood.jpg`} fluid />
                     </Col>
                 </Row>
-
-                {/* Columns are always 50% wide, on mobile and desktop */}
                 <Row>
                     <Col xs={{ span: 2, offset: 2 }} md={{ span: 2, offset: 2 }}>
                         {renderSeat(4)}
@@ -147,11 +160,9 @@ function ReservationCheckTop(props: any) {
                 </Row>
             </Container>
         )
-
     }
 
-
-    const [date, setDate] = useState<string>("本日");
+    const [selectDate, setSelectDate] = useState<Date>(today);
     const [resSeat, setResSeat] = useState<Number | null>(null);
     const [resHour, setResHour] = useState<Number>(0);
     const [resComment, setResComment] = useState<String>("");
@@ -161,94 +172,44 @@ function ReservationCheckTop(props: any) {
         setResHour(number);
     };
 
+    enum DateFormat {
+        YY_MM_DD_dd = 'YYYY/MM/DD(dd)',
+        MM_DD_dd = 'MM/DD(dd)'
+    }
+
+    function formatDate(date: Date, type: DateFormat): string {
+        switch (type) {
+            case DateFormat.YY_MM_DD_dd:
+                return dayjs(date)
+                    .locale('ja')
+                    .format('YYYY/MM/DD(dd)');
+            case DateFormat.MM_DD_dd:
+                return dayjs(date)
+                    .locale('ja')
+                    .format('MM/DD(dd)');
+            default:
+                return '';
+        }
+    }
+
     return (
         <div style={style}>
             <Container style={style}>
                 {reservations.map((reservation) => (<h3> {reservation.seat}</h3>))}
+                {openDate.map((date) => (<h3> {date.toString}</h3>))}
             </Container>
             <Container style={style}>
-                <DropdownButton id="dropdown-basic-button" title={date}>
-                    <Dropdown.Item onClick={() => { setDate("本日"); }}>本日</Dropdown.Item>
-                    <Dropdown.Item onClick={() => { setDate("明日"); }}>明日</Dropdown.Item>
-                    <Dropdown.Item onClick={() => { setDate("明後日"); }}>明後日</Dropdown.Item>
+                <DropdownButton id="dropdown-basic-button" title={dayjs(selectDate).format('YYYY/MM/DD')}>
+                    {openDate.map((date) => (<Dropdown.Item onClick={() => { setSelectDate(date); }}>{dayjs(date).format('YYYY/MM/DD')}</Dropdown.Item>))}
                 </DropdownButton>
             </Container>
             <Board seatButtons={seatsData} />
-            <Container style={style}>
-                {/* Stack the columns on mobile by making one full-width and the other half-width */}
-                <Row>
-                    <Col xs={{ span: 2, offset: 2 }} md={{ span: 2, offset: 2 }}>
-                        <Button variant="outline-primary" onClick={() => setResSeat(3)}>
-                            <Badge bg="light" text="dark">3</Badge>{' '}
-                            空席</Button>{' '}
-                    </Col>
-                    <Col xs={2} md={2}>
-                        <Button variant="outline-primary" onClick={() => setResSeat(2)}>
-                            <Badge bg="light" text="dark">2</Badge>{' '}
-                            空席</Button>{' '}
-                    </Col>
-                    <Col xs={2} md={2}>
-                        <Button variant="outline-primary" onClick={() => setResSeat(1)}>
-                            <Badge bg="light" text="dark">1</Badge>{' '}
-                            空席</Button>{' '}
-                    </Col>
-                    <Col xs={4} md={4}>
-                    </Col>
-                </Row>
-
-                {/* Columns start at 50% wide on mobile and bump up to 33.3% wide on desktop */}
-                <Row >
-                    <Col xs={2} md={2}>
-                        <Button variant="outline-primary" onClick={() => setResSeat(4)}>
-                            <Badge bg="light" text="dark">4</Badge>{' '}
-                            空席
-                        </Button>{' '}
-                    </Col>
-                    <Col xs={10} md={10}>
-                        <Image style={styleB} src={`${process.env.PUBLIC_URL}/img/wood.jpg`} fluid />
-                    </Col>
-                </Row>
-
-                {/* Columns are always 50% wide, on mobile and desktop */}
-                <Row>
-                    <Col xs={{ span: 2, offset: 2 }} md={{ span: 2, offset: 2 }}>
-                        <Button variant="outline-primary" onClick={() => setResSeat(5)}>
-                            <Badge bg="light" text="dark">5</Badge>{' '}
-                            空席
-                        </Button>{' '}
-                    </Col>
-                    <Col xs={2} md={2}>
-                        <Button variant="warning" onClick={() => setResSeat(6)}>
-                            <Badge bg="light" text="dark">6</Badge>{' '}
-                            予約あり
-                        </Button>{' '}
-                    </Col>
-                    <Col xs={2} md={2}>
-                        <Button variant="outline-primary" onClick={() => setResSeat(7)}>
-                            <Badge bg="light" text="dark">7</Badge>{' '}
-                            空席
-                        </Button>{' '}
-                    </Col>
-                    <Col xs={2} md={2}>
-                        <Button variant="danger" onClick={() => setResSeat(8)}>
-                            <Badge bg="light" text="dark">8</Badge>{' '}
-                            着席
-                        </Button>{' '}
-                    </Col>
-                    <Col xs={2} md={2}>
-                        <Button variant="outline-primary" onClick={() => setResSeat(9)}>
-                            <Badge bg="light" text="dark">9</Badge>{' '}
-                            空席
-                        </Button>{' '}
-                    </Col>
-                </Row>
-            </Container>
             <Container style={style}>
                 <Form>
                     <Row className="mb-3">
                         <Form.Group as={Col} controlId="">
                             <Form.Label htmlFor="disabledTextInput">日付</Form.Label>
-                            <Form.Control placeholder={date} disabled />
+                            <Form.Control placeholder={dayjs(selectDate).format('YYYY/MM/DD')} disabled />
                         </Form.Group>
 
                         <Form.Group as={Col} controlId="">
@@ -265,7 +226,7 @@ function ReservationCheckTop(props: any) {
                     </Row>
                     <Form.Group className="mb-3" controlId="">
                         <Form.Label htmlFor="disabledTextInput">座席番号</Form.Label>
-                        <Form.Control value={String(resSeat) + "番席"} disabled />
+                        <Form.Control value={seatSelectionCheck(resSeat)} disabled />
                     </Form.Group>
                     <Form.Group className="mb-3" controlId="">
                         <Form.Label>お店への伝言</Form.Label>
