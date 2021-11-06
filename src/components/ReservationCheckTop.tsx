@@ -1,7 +1,7 @@
 import React, { Fragment, useEffect, useState } from "react";
 
 import { auth, db } from "../firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, orderBy, limit, startAt, endAt } from "firebase/firestore";
 
 import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
 import { async } from "@firebase/util";
@@ -37,17 +37,17 @@ const styleC: React.CSSProperties = {
 }
 
 function ReservationCheckTop(props: any) {
-    const dbName: String = "resB";
+    const dbName: String = "resC";
     const [reservations, setReservations] = useState([{ id: "", seat: "" }]);
     const [seatData, setSeatData] = useState<SeatState[]>(['空席']);
     const [seatButtonState, setSeatButtonState] = useState<SeatButtonState[]>(['outline-primary']);
 
-    const today = new Date();
+    const today = new Date(new Date().setHours(0, 0, 0, 0));;
     const [openDate, setOpenDate] = useState<Date[]>([today]);
 
     useEffect(() => {
-        const q1 = query(collection(db, String(dbName)), where("memberNo", "==", "555555"));
-        const q2 = query(collection(db, String("openDate")));
+        const q1 = query(collection(db, String(dbName)), orderBy('orderForDate', 'asc'), startAt(Timestamp.fromDate(selectDate)), endAt(Timestamp.fromDate(selectDate)));
+        const q2 = query(collection(db, String("openDate")), orderBy('date', 'asc'), startAt(Timestamp.fromDate(today)), limit(3));
         fetchData();
         async function fetchData() {
             const querySnapshot1 = await getDocs(q1);
@@ -84,6 +84,13 @@ function ReservationCheckTop(props: any) {
             return "席を選択してください！"
         } else {
             return String(state) + "番席"
+        }
+    }
+    const reservationButtonState = () => {
+        if (resSeat != null && resHour !== 0) {
+            return false
+        } else {
+            return true
         }
     }
 
@@ -164,7 +171,7 @@ function ReservationCheckTop(props: any) {
 
     const [selectDate, setSelectDate] = useState<Date>(today);
     const [resSeat, setResSeat] = useState<Number | null>(null);
-    const [resHour, setResHour] = useState<Number>(0);
+    const [resHour, setResHour] = useState<number>(0);
     const [resComment, setResComment] = useState<String>("");
 
     const handleChange: React.ChangeEventHandler<HTMLSelectElement> = (ev) => {
@@ -191,6 +198,29 @@ function ReservationCheckTop(props: any) {
                 return '';
         }
     }
+    function dateDropdownSelected(date: any) {
+        setSelectDate(date);
+        setResSeat(null);
+        setResHour(0);
+        const q1 = query(collection(db, String(dbName)), orderBy('orderForDate', 'asc'), startAt(Timestamp.fromDate(date)), endAt(Timestamp.fromDate(date)));
+        fetchData();
+        async function fetchData() {
+            const querySnapshot1 = await getDocs(q1);
+            setReservations(
+                querySnapshot1.docs.map((doc) => ({ id: doc.id, seat: doc.data().seat }))
+            );
+            querySnapshot1.docs.map((doc) => {
+                seatsData[Number(doc.data().seat) - 1] = '予約あり'
+                seatsButtonState[Number(doc.data().seat) - 1] = 'warning'
+            });
+            setSeatData(
+                seatsData.map((seat) => (seat))
+            );
+            setSeatButtonState(
+                seatsButtonState.map((buttonState) => (buttonState))
+            );
+        };
+    }
 
     return (
         <div style={style}>
@@ -200,7 +230,7 @@ function ReservationCheckTop(props: any) {
             </Container>
             <Container style={style}>
                 <DropdownButton id="dropdown-basic-button" title={dayjs(selectDate).format('YYYY/MM/DD')}>
-                    {openDate.map((date) => (<Dropdown.Item onClick={() => { setSelectDate(date); }}>{dayjs(date).format('YYYY/MM/DD')}</Dropdown.Item>))}
+                    {openDate.map((date) => (<Dropdown.Item onClick={() => {dateDropdownSelected(date)}}>{dayjs(date).format('YYYY/MM/DD')}</Dropdown.Item>))}
                 </DropdownButton>
             </Container>
             <Board seatButtons={seatsData} />
@@ -214,7 +244,7 @@ function ReservationCheckTop(props: any) {
 
                         <Form.Group as={Col} controlId="">
                             <Form.Label>時間</Form.Label>
-                            <Form.Select aria-label="Floating label select example" onChange={handleChange}>
+                            <Form.Select aria-label="Floating label select example" value={resHour} onChange={handleChange}>
                                 <option value="0">予約時間を選択してください！</option>
                                 <option value="10">18:00</option>
                                 <option value="20">18:30</option>
@@ -242,14 +272,14 @@ function ReservationCheckTop(props: any) {
                                 id: Math.random().toString(32).substring(2),
                                 hour: resHour,
                                 seat: resSeat,
-                                orderForDate: Timestamp.fromDate(new Date("December 10, 2021")),
+                                orderForDate: Timestamp.fromDate(selectDate),
                                 memberNo: "555555",
                                 comment: resComment
                             });
                         } catch (error: any) {
                             alert(error.message);
                         }
-                    }}>
+                    }} disabled={reservationButtonState()}>
                         予約
                     </Button>
                 </Form>
